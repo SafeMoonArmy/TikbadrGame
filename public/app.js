@@ -103,20 +103,32 @@ function addChatItem(color, data, text, summarize) {
         container.find('div').slice(0, 200).remove();
     }
 
-    const isLikeStream = data.likedStream === true; // Replace with the actual property that indicates if the stream was liked
-    const randomGlow = Math.random() < 0.5; // 50% chance of applying the random glow effect
-    const glowEffect = randomGlow ? 'glow-like-stream' : ''; // Define CSS class for the random glow effect on text
-    const glowEffectPicture = randomGlow ? 'glow-like-stream-picture' : ''; // Define CSS class for the random glow effect on profile pictures
+    const isLikeStream = data.likedStream === true;
+    const randomGlow = Math.random() < 0.5;
+    const glowEffect = randomGlow ? 'glow-like-stream' : '';
+    const glowEffectPicture = randomGlow ? 'glow-like-stream-picture' : '';
+
+    // Get the ranking number and image size dynamically
+    const rankingResult = getRankingNumber(data.uniqueId, userLikes[data.uniqueId].likes);
+    const rankingNumberHtml = rankingResult.rankingNumberHtml;
+    const imageSize = rankingResult.imageSize;
+
+    // Calculate the top and left positions for centering the ranking number
+    const topPosition = imageSize / 2 - 15; // Adjust 15 based on the font size and positioning
+    const leftPosition = imageSize / 2;
+
+    const profilePictureUrl = data.profilePictureUrl || 'default-profile-image.jpg'; // Replace 'default-profile-image.jpg' with a default image URL
+
     const message = $(`
-        <div class=${summarize ? 'temporary' : 'static'} style="display: flex; align-items: center; justify-content: center;">
-            <div class="miniprofilepicture ${glowEffectPicture}" style="margin-right: 10px; overflow: hidden; border-radius: 50%; ${isLikeStream ? 'animation: pulsate 1s infinite;' : ''}">
-                <img src="${data.profilePictureUrl}" style="width: 100%; height: auto;">
+        <div class=${summarize ? 'temporary' : 'static'} style="display: flex; align-items: center; justify-content: center; position: relative;">
+            <div class="miniprofilepicture ${glowEffectPicture}" style="overflow: hidden; border-radius: 50%; ${isLikeStream ? 'animation: pulsate 1s infinite;' : ''}; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative;">
+                <img src="${profilePictureUrl}" style="width: ${imageSize}px; height: ${imageSize}px;">
+                <span class="profile-ranking neon bounce" style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); color: yellow; text-shadow: 0 0 10px yellow;">${rankingNumberHtml}</span>
             </div>
-            <span class="${glowEffect}" style="color:${color}; text-align: center;">
-                ${text}
-            </span>
         </div>
     `);
+    
+
 
     container.append(message);
 
@@ -126,6 +138,51 @@ function addChatItem(color, data, text, summarize) {
     }, 800);
 }
 
+
+
+function getRankingNumber(uniqueId, likes) {
+    const topUsers = getTopUsers();
+    const user = topUsers[uniqueId];
+
+    if (user) {
+        const userIndex = Object.keys(topUsers).indexOf(uniqueId);
+        const rankingNumber = userIndex + 1;
+
+        // Calculate the font size and profile picture size based on the number of likes
+        const fontSize = 1.2 + 0.05 * likes; // You can adjust this multiplier as needed
+        const imageSize = 50 + 1.5 * likes; // You can adjust this multiplier as needed
+
+        // Make the ranking number green and adjust its font size
+        const rankingNumberHtml = `<span style="color: yellow; font-size: ${fontSize}em; font-weight: bold;">${rankingNumber}</span>`;
+
+        return {
+            rankingNumberHtml,
+            imageSize,
+        };
+    } else {
+        return {
+            rankingNumberHtml: '',
+            imageSize: 50, // Default size if the user is not in the top 10
+        };
+    }
+}
+
+function getTopUsers() {
+    // Sort the users based on the number of likes in descending order
+    const sortedUsers = Object.entries(userLikes)
+        .sort(([, a], [, b]) => b.likes - a.likes)
+        .slice(0, 10); // Take the top 10 users
+
+    // Convert the sorted array back to an object
+    const topUsers = sortedUsers.reduce((acc, [uniqueId, user]) => {
+        acc[uniqueId] = user;
+        return acc;
+    }, {});
+
+    return topUsers;
+}
+
+// ...
 
 // Add CSS animation for pulsating
 const styles = `
@@ -272,7 +329,51 @@ connection.on('roomUser', (msg) => {
 // Counter for tracking likes per user
 const userLikes = {};
 
+// Modify the displayTopUsersBattle function to show only the gif during the battle section
+// Modify the displayTopUsersBattle function to show the gif in the middle of the battle container
+function displayTopUsersBattle() {
+    const topUsers = getTopUsers();
+
+    // Check if there are at least two top users
+    if (Object.keys(topUsers).length >= 2) {
+        const [firstUser] = Object.keys(topUsers);
+
+        // Display a battle message with the gif in the middle
+        const battleMessage = `
+            <div class="battle-container">
+                <div class="battle-profile">
+                    <!-- No user profile picture -->
+                </div>
+                <div class="versus">
+                    <img class="gif-image" src="l.gif" alt="L GIF"> <!-- Adjust 'l.gif' as needed -->
+                </div>
+                <div class="battle-profile">
+                    <!-- No user profile picture -->
+                </div>
+            </div>
+        `;
+
+        // Append the battle message to the chat or display it in a specific area
+        const container = $('.chatcontainer');
+        container.append(battleMessage);
+
+        // Make sure to scroll to the bottom of the chat container after adding the battle message
+        container.scrollTop(container.prop("scrollHeight"));
+    }
+}
+
+
+
+
 // ...
+
+// Helper function to scroll to the bottom of a container
+function scrollToBottom(containerSelector) {
+    const container = $(containerSelector);
+    container.scrollTop(container.prop("scrollHeight"));
+}
+
+
 
 connection.on('like', (msg) => {
     if (typeof msg.totalLikeCount === 'number') {
@@ -290,11 +391,11 @@ connection.on('like', (msg) => {
         if (!userLikes[msg.uniqueId]) {
             userLikes[msg.uniqueId] = {
                 likes: 1,
-                imageSize: 15 // Initial image size
+                imageSize: 5, // Initial image size
             };
         } else {
             userLikes[msg.uniqueId].likes++;
-            userLikes[msg.uniqueId].imageSize += 2; // Increase image size with each like
+            userLikes[msg.uniqueId].imageSize += 0.05; // Increase image size with each like
         }
 
         // Display the user's profile picture with an increasing size based on the number of likes
@@ -302,7 +403,15 @@ connection.on('like', (msg) => {
         const profilePicture = `<img class="miniprofilepicture" style="width: ${imageSize}px; height: ${imageSize}px;" src="${msg.profilePictureUrl}">`;
 
         // Add the chat item with the modified layout
-        addChatItem(color, msg, `${profilePicture} ${username} liked the stream (${userLikes[msg.uniqueId].likes} likes)`);
+        const rankingNumber = getRankingNumber(msg.uniqueId);
+        const rankingNumberHtml = rankingNumber ? `<div class="profile-ranking">${rankingNumber}</div>` : '';
+        const text = `${rankingNumberHtml} ${profilePicture} ${username} liked the stream (${userLikes[msg.uniqueId].likes} likes)`;
+        addChatItem(color, msg, text);
+
+        // Check if a battle should be displayed (e.g., after every 10 likes)
+        if (userLikes[msg.uniqueId].likes % 10 === 0) {
+            displayTopUsersBattle();
+        }
     }
 });
 

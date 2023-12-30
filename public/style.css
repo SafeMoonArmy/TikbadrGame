@@ -291,3 +291,8 @@ a {
 .chatcontainer, .giftcontainer {
     transition: background-color 0.3s; /* Add a smooth transition effect */
 }
+.neon {
+    color: #08ff08;
+    text-shadow: 0 0 5px #0051ff, 0 0 10px #fff, 0 0 20px rgb(255, 0, 242), 0 0 30px rgb(251, 255, 0), 0 0 40px #00f;
+  }
+
